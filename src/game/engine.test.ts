@@ -7,17 +7,17 @@ function ready(): GameState { const s = createState(NOW); s.coins = 100000; s.xp
 const json = (s: GameState) => JSON.stringify(s);
 
 describe('RNG and progression', () => {
-  it('has 56 unique aura IDs, 7 complete rarity tiers, and 5 worlds', () => {
-    expect(AURAS).toHaveLength(56); expect(new Set(AURAS.map(a => a.id)).size).toBe(56);
-    for (let r = 0; r < 7; r++) expect(AURAS.filter(a => a.rarity === r)).toHaveLength(8);
-    expect(ZONES).toHaveLength(5);
+  it('has 1556 unique aura IDs, 7 complete rarity tiers, and 30 worlds', () => {
+    expect(AURAS).toHaveLength(1556); expect(new Set(AURAS.map(a => a.id)).size).toBe(1556);
+    for (let r = 0; r < 7; r++) expect(AURAS.filter(a => a.rarity === r).length).toBeGreaterThanOrEqual(8);
+    expect(ZONES).toHaveLength(30);
   });
   it('normalizes probabilities and increases rare-tier odds with luck', () => {
     const s = createState(NOW), plain = auraProbabilities(s, NOW); s.upgrades.luck = 5;
     const boosted = auraProbabilities(s, NOW);
     expect(plain.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
     expect(boosted.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
-    expect(boosted.slice(40).reduce((a, b) => a + b, 0)).toBeGreaterThan(plain.slice(40).reduce((a, b) => a + b, 0));
+    expect(boosted.reduce((sum, p, i) => sum + (AURAS[i].rarity >= 5 ? p : 0), 0)).toBeGreaterThan(plain.reduce((sum, p, i) => sum + (AURAS[i].rarity >= 5 ? p : 0), 0));
   });
   it('awards free rolls, currencies, XP, new discoveries and equips the first aura', () => {
     const s = createState(NOW), result = roll(s, 1, NOW, () => 0);
@@ -50,7 +50,7 @@ describe('RNG and progression', () => {
   });
   it('covers the lower and upper ends of the random range', () => {
     expect(roll(createState(NOW), 1, NOW, () => 0).results[0].auraId).toBe(AURAS[0].id);
-    expect(roll(createState(NOW), 1, NOW, () => 1).results[0].auraId).toBe(AURAS[55].id);
+    expect(roll(createState(NOW), 1, NOW, () => 1).results[0].auraId).toBe(AURAS[AURAS.length - 1].id);
   });
   it('adds zone resonance to matching aura probabilities', () => {
     const s = createState(NOW); s.zone = 'forest'; const p = auraProbabilities(s, NOW);

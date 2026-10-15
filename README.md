@@ -1,70 +1,107 @@
-# ASTRA · Vũ trụ RNG
+# ASTRA · Cosmos Expansion
 
-Game RNG chơi đơn bằng tiếng Việt, chạy ngay trên trình duyệt. Giao diện thiên hà, hành tinh có quỹ đạo, các vùng có phong cảnh riêng và âm thanh tổng hợp bằng Web Audio. Không sử dụng tiền thật.
+Game RNG chơi đơn bằng tiếng Việt với **2.000 nội dung chính**, hiệu ứng thiên hà và tiến trình dài hạn. Chạy trên trình duyệt, không sử dụng tiền thật, không cần tài khoản hay API key.
 
-## Khởi động
+## Chạy dự án
 
-Yêu cầu Node.js 20.19+ hoặc 22+. Môi trường cloud đã kiểm tra với Node.js 24.
+Yêu cầu Node.js 20.19+ hoặc 22+. Môi trường hiện tại dùng Node.js 24.
 
 ```sh
-cd /workspace/RNGGG
 npm ci
 npm run dev -- --port 5173
 ```
 
-Vite phục vụ trên cổng 5173. Bản production:
+Trong cloud, checkout nằm ở `/workspace/RNGGG`. Mỗi task đã được cô lập; dùng checkout hiện có, không tạo worktree trừ khi được yêu cầu.
 
 ```sh
-npm run build
+npm test                 # 44 kiểm thử logic
+npm run build            # TypeScript + production bundle
 npm run preview -- --port 4173
 ```
 
-Kiểm thử cơ chế game: `npm test`. `npm run build` đồng thời kiểm tra TypeScript. Không cần database, API key hoặc dịch vụ bên ngoài. Font được đóng gói cục bộ.
+Không cần database, biến môi trường hay dịch vụ bên ngoài. Font, phong cảnh và hiệu ứng được phục vụ cục bộ. Chưa triển khai tài khoản, multiplayer hay đồng bộ cloud.
 
-## Nội dung hiện có
+## Danh mục 2.000 nội dung
 
-- **56 aura, 7 độ hiếm**: Thường → Độc đáo → Hiếm → Sử thi → Huyền thoại → Thần thoại → Thiên giới. Xem tỷ lệ thật của từng aura trong bộ sưu tập; tỷ lệ thay đổi theo may mắn và vùng. Trang bị aura để tăng sức mạnh; phân rã bản sao giữ lại ít nhất một bản.
-- **Quay miễn phí**: quay đơn, tự động, quay 10 sau 50 lượt. Phím R hoặc Space tại trạm quan sát. Có tùy chọn tự dừng khi gặp Huyền thoại trở lên.
-- **Bảo hiểm**: nếu 39 lượt liên tiếp chưa có Sử thi+, lượt 40 chắc chắn Sử thi+; nếu 199 lượt chưa có Thần thoại+, lượt 200 chắc chắn Thần thoại+. Bộ đếm reset khi nhận độ hiếm tương ứng. Trong quay 10, xử lý lần lượt từng lượt.
-- **5 vùng**: Vườn tinh tú, Rừng linh hồn, Miền băng vĩnh cửu, Tàn tích mặt trời, Vực thẳm hư không. Vùng cần cấp độ và vàng để mở; vùng ngoài Vườn tinh tú tăng gấp đôi trọng số aura cùng hệ trước khi chuẩn hóa tỷ lệ.
-- **Thám hiểm**: một chuyến tại một thời điểm, mang về nguyên liệu, vàng và XP. Đồng hồ dùng thời gian tuyệt đối, có thể hoàn tất khi đóng trang; nhận thưởng một lần khi trở lại.
-- **3 tuyến nâng cấp**, tổng 37 cấp: may mắn, tốc độ quay và vàng mỗi lượt. **6 cổ vật** có hiệu ứng cộng dồn. Thuốc may mắn +1,5 trong 2 phút, có thể cộng dồn thời gian.
-- **Boss Kẻ nuốt sao**: trận đánh theo lượt từ cấp 3. Tấn công, phòng thủ giảm 75% sát thương nhận vào, bùng nổ gây 2,4× sát thương mỗi ba lượt. Thắng nhận 1.600 vàng, 2 tinh chất, 8 tinh thể và 400 XP. Hồi phục 2 phút sau chiến thắng, 30 giây sau thua hoặc rút lui.
-- **4 nhiệm vụ mỗi ngày**, quà đăng nhập với chuỗi ngày, **10 thành tựu**, nhật ký 60 sự kiện. Nhiệm vụ làm mới theo ngày trên máy người chơi.
-- **Mưa sao băng**: 5 phút đầu mỗi chu kỳ 15 phút theo đồng hồ hệ thống, may mắn +0,35.
-- **Tái sinh**: cần cấp 15, 500 lượt quay, 15.000 vàng. Reset XP và ba tuyến nâng cấp; tiêu hao 15.000 vàng. Giữ aura, nguyên liệu, vùng, cổ vật và thành tựu. Mỗi lần tăng vĩnh viễn +0,3 may mắn, +12 sức mạnh.
+| Loại | Tổng | Phần mở rộng |
+| --- | ---: | ---: |
+| Aura | 1.556 | 1.500 aura mới, giữ 56 aura gốc |
+| Vùng | 30 | 25 vùng mới |
+| Cổ vật | 120 | 114 công thức mới |
+| Hợp đồng dài hạn | 200 | 10 hành trình × 20 chương |
+| Thành tựu | 64 | 54 mốc mới |
+| Boss | 30 | 29 boss mới |
+| **Tổng** | **2.000** | **1.922 mục mới** |
 
-## Tiến trình và khả năng truy cập
+Tổng trên không đếm lặp hiệu ứng thành aura, không đếm các cấp nâng cấp và không bao gồm 4 nhiệm vụ hằng ngày có sẵn. Số lượng được tính trực tiếp từ danh mục `CONTENT_COUNTS`; kiểm thử kiểm tra ID độc nhất và tổng chính xác.
 
-Tự động lưu bằng `localStorage` dưới khóa `astra-rng-save-v1`. Thiết lập có xuất/nhập JSON được kiểm tra cấu trúc, xác nhận trước khi thay thế và reset phải nhập ASTRA. Nếu lưu trữ bị chặn, trạng thái cảnh báo và chức năng xuất file vẫn có sẵn. Bản lưu không hợp lệ được sao lưu riêng trước khi bắt đầu mới. Tiến trình gắn với trình duyệt và origin; dùng xuất/nhập để chuyển máy hoặc cổng phục vụ.
+## Aura và hiệu ứng
 
-Game hỗ trợ điện thoại, điều hướng bằng bàn phím, giữ focus trong hộp thoại, `prefers-reduced-motion`, tùy chọn giảm chuyển động và âm thanh tắt mặc định. Khi mở hộp thoại, quay tự động tạm dừng; một lượt đang chạy vẫn hoàn thành.
+30 hệ gồm Tinh tú, Linh mộc, Băng phách, Hỏa nhật, Hư không, Hải triều, Lôi đình, Anh đào, Sa mạc, Pha lê, Vực sâu, Thời cơ, Mộng cảnh, Độc mộng, Dung nham, Cực quang, Trọng lực, Huyết nguyệt, Cơ giới, Vong linh, Hoàng kim, Nấm mộng, Ảo kính, Bão hải, Mặc ảnh, Phượng linh, Lượng tử, Nhật thực, Sáng thế và Vô tận.
 
-## Giao diện và chuyển động
+Mỗi hệ có 50 aura mới. Mỗi aura có ID ổn định, tên, mô tả, độ hiếm, vùng cộng hưởng, sức mạnh và một hồ sơ hiệu ứng xác định. Đây là các biến thể được sinh từ **12 họ chuyển động**: quỹ đạo, cánh hoa, tuyết, lửa, xoáy, sóng, sấm, sao băng, lăng kính, nhật thực, pháp trận và tân tinh. Thông số vòng, cánh, tốc độ, hướng xoáy, độ mở, màu phụ và vị trí hạt tạo bản sắc cho từng aura; không phải 1.500 đoạn hoạt ảnh viết tay độc lập.
 
-- Nền tinh vân, các lớp sao có chuyển động nhẹ theo con trỏ và sao băng; sự kiện Mưa sao băng tăng số vệt sao.
-- Quay thưởng qua ba giai đoạn Khơi nguồn → Cộng hưởng → Hiển lộ, với vòng năng lượng, thanh tiến trình và sóng ánh sáng lúc nhận aura. Quay ×10 hiển thị aura có độ hiếm cao nhất tại trạm quan sát.
-- Màn nhận aura Huyền thoại, Thần thoại và Thiên giới có màu, tiêu đề và ánh sáng riêng. Các thẻ kết quả lần lượt xuất hiện; số vàng và lượt quay chuyển mượt.
-- Nút bấm có gợn sóng; thẻ aura, cổ vật và vùng có ánh sáng theo vị trí chuột. Chế tạo, phần thưởng và lên cấp có bụi sao; hiệu ứng được dọn sau khi hoàn tất.
-- Boss có hiệu ứng chém, phòng thủ, sóng bùng nổ và số sát thương. Các hành động khóa ngắn 420–600 ms khi hiệu ứng đang diễn ra; chế độ giảm chuyển động bỏ khoảng khóa này.
-- Thanh điều hướng dưới trên điện thoại cho phép đổi cả năm màn hình bằng một lần chạm. Mục tiêu tiếp theo giúp theo dõi mở quay ×10, mở vùng, chế tạo và tái sinh.
-- Cả tùy chọn trong game và thiết lập giảm chuyển động của hệ điều hành đều tắt các chuyển động trang trí, vẫn giữ phần thưởng, trạng thái và tiến trình game.
+Hiệu ứng Canvas thực sự chạy tại aura đang quay, xem trước hoặc nhận thưởng. Danh mục chỉ dựng 24 thẻ mỗi trang, không chạy hàng nghìn Canvas cùng lúc. Renderer giới hạn hạt, tỷ lệ điểm ảnh và dừng khi ra khỏi màn hình hoặc tab bị ẩn. Cả tùy chọn trong game và `prefers-reduced-motion` đều được hỗ trợ.
 
-Đây là bản game chơi đơn hoàn chỉnh. Tài khoản, đồng bộ cloud, giao dịch và multiplayer chưa được triển khai.
+Bộ sưu tập có tìm kiếm không dấu, lọc 30 hệ, lọc 7 độ hiếm, chỉ hiện aura sở hữu/yêu thích, sắp xếp tên/sức mạnh/số lượng, phân trang và nhập số trang. Có thể xem trước và yêu thích aura chưa sở hữu. Trang bị mạnh nhất chọn theo sức mạnh thực; phân rã hàng loạt giữ lại ít nhất một bản của mọi aura.
 
-## Cấu trúc
+## RNG và tiến trình
+
+Quay miễn phí bằng nút Quay aura, phím R hoặc Space. Mở quay ×10 sau 50 lượt. Mỗi lượt nhận vàng, XP, bụi sao và có thể nhận tinh thể/tinh chất. Quay tự động tạm dừng khi mở hộp thoại; có tùy chọn dừng khi gặp Huyền thoại trở lên.
+
+Bảy độ hiếm: Thường, Độc đáo, Hiếm, Sử thi, Huyền thoại, Thần thoại, Thiên giới. Trọng số cơ bản tương ứng là 48%, 27%, 15%, 6,8%, 2,55%, 0,55%, 0,1% trước điều chỉnh may mắn/vùng. Mỗi trọng số được chia theo số aura trong tầng, nên thêm nhiều aura không làm sai tỷ lệ độ hiếm. Hồ sơ aura hiển thị tỷ lệ thường thực tế theo may mắn và vùng hiện tại.
+
+- **Bảo hiểm Sử thi**: nếu 39 lượt chưa có Sử thi+, lượt 40 chắc chắn Sử thi+.
+- **Bảo hiểm Thần thoại**: nếu 199 lượt chưa có Thần thoại+, lượt 200 chắc chắn Thần thoại+.
+- Nhận tầng tương ứng sẽ reset bộ đếm; quay ×10 xử lý tuần tự từng lượt.
+- Vùng ngoài Vườn tinh tú nhân đôi trọng số aura cùng hệ trước khi chuẩn hóa.
+- Thuốc may mắn +1,5 trong 2 phút; dùng thêm cộng dồn thời gian.
+- Mưa sao băng diễn ra 5 phút đầu mỗi chu kỳ 15 phút theo đồng hồ hệ thống, may mắn +0,35.
+
+Ba tuyến nâng cấp có tổng 37 cấp. Mọi cổ vật đã chế tạo đều cộng dồn may mắn và sức mạnh. Cổ vật mới cần đúng vùng đã mở, cấp độ, vàng và nguyên liệu được ghi trong công thức.
+
+## Vùng, thám hiểm và boss
+
+Vùng mở dần theo cấp và vàng. Một đội thám hiểm hoạt động tại một thời điểm; đồng hồ dùng thời gian tuyệt đối, vẫn có thể hoàn tất khi đóng trang. Nhận phần thưởng một lần khi quay lại.
+
+Mỗi vùng có một boss với HP, yêu cầu cấp, chiến lợi phẩm và hồi chiêu riêng. Các kiểu chiến thuật:
+
+- **Cuồng kích**: đòn thứ ba mạnh hơn 50%; phòng thủ đúng lúc.
+- **Cuồng nộ**: sát thương tăng 45% khi còn dưới nửa máu.
+- **Thiết giáp**: giảm 60% sát thương ở đầu chu kỳ ba lượt; Bùng nổ xuyên giáp.
+- **Tái tạo**: hồi 3% máu tối đa mỗi ba lượt nếu còn sống.
+
+Phòng thủ giảm 75% sát thương nhận vào. Bùng nổ gây 2,4× sát thương, sẵn sàng mỗi ba lượt. Máu người chơi là 150 + 5 × cấp khi bắt đầu trận. UI thông báo ý đồ sắp tới. Hiệu ứng đòn đánh có khoảng khóa 420–600 ms; chế độ giảm chuyển động bỏ khoảng khóa này.
+
+Boss đầu vẫn có 360 HP và thưởng 1.600 vàng, 2 tinh chất, 8 tinh thể, 400 XP. Các boss sau tăng chỉ số và phần thưởng. Thắng hồi chiêu 2 phút; thua/rút lui 30 giây. Hồi chiêu không chặn boss khác. Thống kê theo dõi số lần thắng từng boss và số boss khác nhau đã đánh bại.
+
+## Mục tiêu dài hạn
+
+4 nhiệm vụ hằng ngày và quà đăng nhập làm mới theo ngày trên máy người chơi. 200 hợp đồng theo dõi lượt quay, bộ sưu tập, chế tạo, mở vùng, thắng boss, thám hiểm, vàng từ quay, cấp hiện tại, số lượt tại một vùng và số boss khác nhau. Hợp đồng không reset qua ngày và chỉ trả thưởng một lần. Nhận tất cả chỉ nhận những mục đủ điều kiện tại thời điểm bấm.
+
+64 thành tựu trả vàng và thêm một lọ thuốc. 10 ID gốc được giữ, bao gồm mốc 56 aura; có mốc Cosmos riêng cho đủ 1.556 aura. Nhật ký giữ 60 sự kiện.
+
+Tái sinh cần cấp 15, 500 lượt quay và 15.000 vàng. Reset XP và ba tuyến nâng cấp, tiêu hao 15.000 vàng; giữ aura, vùng, cổ vật, nguyên liệu, hợp đồng đã nhận và thành tựu. Mỗi lần thêm vĩnh viễn +0,3 may mắn và +12 sức mạnh. Các hợp đồng dùng “cấp hiện tại” tiếp tục phụ thuộc cấp sau tái sinh.
+
+## Lưu và tương thích
+
+Khóa lưu vẫn là `astra-rng-save-v1`. Bản lưu cũ được bổ sung các trường mới với giá trị mặc định, giữ ID aura/vùng/cổ vật gốc, tiền, XP, bộ sưu tập, chuyến thám hiểm và trận boss đang diễn ra. Trận boss cũ giữ 150 HP tối đa của người chơi. Các chiến thắng cũ được ghi cho Kẻ nuốt sao; thống kê số lượt theo vùng bắt đầu từ bản Cosmos vì phiên bản cũ chưa lưu dữ liệu này.
+
+Tự động lưu sau mỗi hành động. Có xuất/nhập JSON với kiểm tra cấu trúc, ID, giá trị và xác nhận trước khi thay thế. Đổi máy, cổng hoặc trình duyệt cần xuất/nhập. Nếu lưu trữ bị chặn, game báo trạng thái và vẫn cho xuất file. Reset yêu cầu nhập ASTRA.
+
+## Cấu trúc chính
 
 ```text
-src/game/data.ts         Aura, vùng, công thức, nhiệm vụ, thành tựu
-src/game/engine.ts       RNG, tiến trình, chiến đấu, kinh tế và kiểm tra bản lưu
-src/game/engine.test.ts  Kiểm thử logic độc lập với giao diện
-src/components/Art.tsx  Canvas sao, phong cảnh SVG, hành tinh
-src/components/Screens.tsx  Các màn hình nội dung
-src/components/Ui.tsx   Hộp thoại, thanh tiến trình và thành phần chung
-src/components/Motion.tsx  Quay ba giai đoạn, phản hồi tương tác và hiệu ứng thưởng
-src/App.tsx             Tương tác, tự động quay, âm thanh và lưu trữ
-src/styles.css          Giao diện responsive và hiệu ứng
-src/motion.css          Lớp giao diện và chuyển động nâng cao
+src/game/themes.ts          30 thế giới và cấu hình hiệu ứng
+src/game/data.ts            Danh mục 2.000 mục, ID và số lượng
+src/game/engine.ts          RNG, chiến đấu, hợp đồng, kinh tế, migration
+src/game/engine.test.ts     28 kiểm thử lõi
+src/game/cosmos.test.ts     16 kiểm thử mở rộng và tương thích
+src/components/AuraFX.tsx   12 renderer hiệu ứng theo hồ sơ aura
+src/components/CatalogueUi.tsx  Tìm kiếm và phân trang
+src/components/Screens.tsx  Bộ sưu tập, vùng/boss, xưởng và hành trình
+src/components/Art.tsx      Phong cảnh, hành tinh, nền sao
+src/components/Motion.tsx   Chuyển động, quay ba giai đoạn, phản hồi
+src/App.tsx                Tương tác, âm thanh và lưu game
+src/catalogue.css          Giao diện mở rộng
 ```
-
-Mỗi task cloud đã được cô lập. Dùng checkout hiện có; không cần tạo Git worktree.

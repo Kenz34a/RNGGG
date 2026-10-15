@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
-import type { ZoneId } from '../game/data';
+import { THEMES, ZONES, type ZoneId, type EffectProfile } from '../game/data';
+import { AuraFX } from './AuraFX';
 import { useReducedMotion } from './Motion';
 
 export function Starfield({ reducedMotion, meteorShower = false }: { reducedMotion: boolean; meteorShower?: boolean }) {
@@ -43,12 +44,11 @@ export function Starfield({ reducedMotion, meteorShower = false }: { reducedMoti
   return <><div className="ambient-nebula" aria-hidden="true"><i /><i /><i /></div><canvas ref={ref} className="starfield" aria-hidden="true" /></>;
 }
 
-const palettes: Record<ZoneId, [string, string, string]> = {
-  astral: ['#79cba7', '#234e47', '#0b2124'], forest: ['#9bdf8a', '#365c3b', '#122820'],
-  frost: ['#87bdf8', '#294568', '#101b30'], ember: ['#f4b682', '#713d36', '#251a24'], void: ['#b39ce8', '#443d66', '#18152b'],
-};
+const shade = (hex: string, ratio: number) => '#' + [1, 3, 5].map(offset => Math.round(parseInt(hex.slice(offset, offset + 2), 16) * ratio).toString(16).padStart(2, '0')).join('');
+const palettes = Object.fromEntries(ZONES.map(z => [z.id, [z.color, shade(z.color, .32), shade(z.color, .12)]])) as Record<ZoneId, [string, string, string]>;
 export function Landscape({ zone = 'astral', compact = false }: { zone?: ZoneId; compact?: boolean }) {
   const id = useId().replace(/:/g, ''); const [light, mid, dark] = palettes[zone];
+  const motif = THEMES.find(t => t.id === zone)!.motif;
   return <svg className={`landscape ${compact ? 'compact' : ''}`} viewBox="0 0 1000 480" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
       <linearGradient id={`${id}-sky`} x2="0" y2="1"><stop stopColor="#0b1621" /><stop offset="1" stopColor={dark} /></linearGradient>
@@ -65,7 +65,13 @@ export function Landscape({ zone = 'astral', compact = false }: { zone?: ZoneId;
     <path d="m0 385 90-39 57 22 115-42 62 36 78-27 52 36 133-43 87 30 96-53 137 68 93-36v143H0Z" fill={`url(#${id}-mount)`} />
     <path d="m0 430 90-35 134 33 93-30 116 36 165-15 97-28 98 12 100-18 107 41v54H0Z" fill="#0b171e" />
     <path d="M430 480q160-100 299-86-172-8-230 86" fill={light} opacity=".1" />
-    {Array.from({ length: compact ? 12 : 26 }, (_, i) => {
+    {(motif === 'tide' || motif === 'comet') && Array.from({ length: 5 }, (_, i) => <path key={`wave-${i}`} d={`M-50 ${360 + i * 23}q125-34 250 0t250 0t250 0t350 0`} fill="none" stroke={light} strokeWidth={2 + i} opacity={.08 + i * .02} />)}
+    {motif === 'storm' && [230, 520, 790].map((x, i) => <path key={x} d={`m${x} ${30 + i * 20}-25 100 32-12-44 95 90-130-42 10 28-63`} fill={light} opacity=".12" />)}
+    {(motif === 'prism' || motif === 'snow') && [75, 190, 680, 830, 960].map((x, i) => <g key={x} opacity=".25"><path d={`m${x} 430-24-80 24-${40 + i * 13} 25 ${40 + i * 13}-25 80Z`} fill={mid} stroke={light} strokeWidth="1" /><path d={`M${x} 430v-${120 + i * 13}`} stroke={light} opacity=".5" /></g>)}
+    {(motif === 'eclipse' || motif === 'vortex') && <g opacity=".22"><circle cx="780" cy="125" r="58" fill="#040917" stroke={light} /><ellipse cx="780" cy="125" rx="100" ry="24" fill="none" stroke={light} transform="rotate(-25 780 125)" /><circle cx="780" cy="125" r="72" fill="none" stroke={light} strokeDasharray="1 10" /></g>}
+    {(motif === 'flame' || motif === 'nova') && [150, 560, 870].map((x, i) => <g key={x} opacity=".17"><path d={`M${x} 420q-32-60 0-${100 + i * 20} 50 60 0 ${100 + i * 20}`} fill={light} /><path d={`m${x - 50} 65 85 70`} stroke={light} strokeWidth="2" /></g>)}
+    {motif === 'rune' && [130, 350, 720, 900].map((x, i) => <g key={x} opacity=".22" stroke={light} fill={mid}><path d={`M${x - 20} 420v-${90 + i * 13}h40v${90 + i * 13}Z`} /><circle cx={x} cy={350 - i * 7} r="11" fill="none" /><path d={`m${x - 8} ${350 - i * 7} 8-8 8 8-8 8Z`} fill="none" /></g>)}
+    {(motif === 'bloom' || motif === 'orbit' || motif === 'snow') && Array.from({ length: compact ? 12 : 26 }, (_, i) => {
       const x = i < 13 ? i * 29 : 670 + (i - 13) * 29; const y = 423 + Math.sin(i) * 14; const h = 20 + (i * 37) % 67;
       return <g key={i} fill="#08141b" opacity={.65 + i % 3 * .1}><path d={`M${x} ${y - h}l${h * .22} ${h * .5}h-${h * .12}l${h * .27} ${h * .35}h-${h * .27}v${h * .2}h-3v-${h * .2}h-${h * .27}l${h * .27}-${h * .35}h-${h * .12}Z`} /></g>;
     })}
@@ -73,10 +79,10 @@ export function Landscape({ zone = 'astral', compact = false }: { zone?: ZoneId;
   </svg>;
 }
 
-export function Orb({ color = '#98e8c4', glyph = '✦', rolling = false, size = 'large', rarity = 0 }: { color?: string; glyph?: string; rolling?: boolean; size?: 'small' | 'large'; rarity?: number }) {
+export function Orb({ color = '#98e8c4', glyph = '✦', rolling = false, size = 'large', rarity = 0, effect, reducedMotion = false }: { color?: string; glyph?: string; rolling?: boolean; size?: 'small' | 'large'; rarity?: number; effect?: EffectProfile; reducedMotion?: boolean }) {
   const id = useId().replace(/:/g, '');
   return <div className={`orb-wrap ${size} ${rolling ? 'rolling' : ''} rarity-${rarity}`} style={{ '--aura-color': color } as React.CSSProperties} aria-hidden="true">
-    <div className="orb-halo" /><div className="orb-corona" /><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" />
+    {effect && <AuraFX profile={effect} color={color} reducedMotion={reducedMotion} />}<div className="orb-halo" /><div className="orb-corona" /><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" />
     {size === 'large' && <svg className="orb-astrolabe" viewBox="0 0 320 320"><circle cx="160" cy="160" r="139" fill="none" stroke="currentColor" strokeWidth=".6" strokeDasharray="1 12" /><circle cx="160" cy="160" r="124" fill="none" stroke="currentColor" strokeWidth=".5" strokeDasharray="26 168" />{Array.from({ length: 8 }, (_, i) => <g key={i} transform={`rotate(${i * 45} 160 160)`}><path d="M160 11v12m-4-6h8" fill="none" stroke="currentColor" strokeWidth=".6" /><circle cx="160" cy="36" r={i % 2 ? 1 : 2} fill="currentColor" /></g>)}</svg>}
     <svg className="orb-sphere" viewBox="0 0 240 240">
       <defs>

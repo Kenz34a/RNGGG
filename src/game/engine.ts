@@ -1,4 +1,4 @@
-import { ACHIEVEMENTS, AURAS, QUESTS, RARITIES, RECIPES, UPGRADES, ZONES, type Material, type UpgradeId, type ZoneId } from './data';
+import { ACHIEVEMENTS, AURAS, AURA_BY_ID, BOSSES, BOSS_BY_ID, CONTRACTS, QUESTS, RARITIES, RARITY_COUNTS, RECIPES, UPGRADES, ZONES, type Material, type UpgradeId, type ZoneId } from './data';
 
 export const SAVE_KEY = 'astra-rng-save-v1';
 export const dayKey = (now = Date.now()) => new Date(now).toLocaleDateString('en-CA');
@@ -9,8 +9,9 @@ export interface GameState {
   upgrades: Record<UpgradeId, number>; crafted: string[]; unlockedZones: ZoneId[]; zone: ZoneId;
   pityEpic: number; pityMythic: number; potions: number; boostUntil: number;
   expedition: { zone: ZoneId; endsAt: number } | null; expeditionsDone: number;
-  boss: { hp: number; playerHp: number; turn: number } | null; bossWins: number; bossCooldown: number;
+  boss: { id: string; hp: number; maxHp: number; playerHp: number; playerMaxHp: number; turn: number } | null; bossWins: number; bossCooldown: number;
   daily: { date: string; rolls: number; discoveries: number; rares: number; expeditions: number; claimed: string[] };
+  favorites: string[]; contractsClaimed: string[]; bossKills: Record<string, number>; bossCooldowns: Record<string, number>; zoneRolls: Record<string, number>;
   dailyReward: string; dailyStreak: number; achievementsClaimed: string[];
   stats: { bestRarity: number; totalEarned: number }; log: LogEntry[];
   settings: { sound: boolean; reducedMotion: boolean; autoStop: boolean };
@@ -22,6 +23,7 @@ export function createState(now = Date.now()): GameState {
     pityEpic: 0, pityMythic: 0, potions: 2, boostUntil: 0, expedition: null, expeditionsDone: 0,
     boss: null, bossWins: 0, bossCooldown: 0,
     daily: { date: dayKey(now), rolls: 0, discoveries: 0, rares: 0, expeditions: 0, claimed: [] },
+    favorites: [], contractsClaimed: [], bossKills: {}, bossCooldowns: {}, zoneRolls: {},
     dailyReward: '', dailyStreak: 0, achievementsClaimed: [], stats: { bestRarity: -1, totalEarned: 0 },
     log: [{ id: 'welcome', time: now, text: 'Chào mừng đến ASTRA. Vũ trụ đang chờ bạn.', type: 'world' }],
     settings: { sound: false, reducedMotion: false, autoStop: true },
@@ -41,13 +43,13 @@ export function eventRemaining(now = Date.now()) { const t = Math.floor(now / 10
 export function rollDuration(s: GameState) { return Math.round(1800 * (1 - .08 * s.upgrades.speed)); }
 export function upgradeCost(s: GameState, id: UpgradeId) { return Math.round(UPGRADES.find(u => u.id === id)!.base * 1.65 ** s.upgrades[id]); }
 export function powerOf(s: GameState) {
-  const aura = AURAS.find(a => a.id === s.equipped);
-  return 12 + (aura ? [3, 8, 18, 35, 65, 110, 180][aura.rarity] : 0) + levelOf(s.xp) * 3 + s.rebirths * 12
+  const aura = s.equipped ? AURA_BY_ID[s.equipped] : undefined;
+  return 12 + (aura?.power ?? 0) + levelOf(s.xp) * 3 + s.rebirths * 12
     + RECIPES.filter(r => s.crafted.includes(r.id)).reduce((v, r) => v + r.power, 0);
 }
 export function auraProbabilities(s: GameState, now = Date.now(), minRarity = 0) {
   const luck = luckOf(s, now);
-  const weights = AURAS.map(a => a.rarity < minRarity ? 0 : RARITIES[a.rarity].weight / 8 * (1 + (luck - 1) * a.rarity * .65)
+  const weights = AURAS.map(a => a.rarity < minRarity ? 0 : RARITIES[a.rarity].weight / RARITY_COUNTS[a.rarity] * (1 + (luck - 1) * a.rarity * .65)
     * (s.zone !== 'astral' && a.affinity === s.zone ? 2 : 1));
   const total = weights.reduce((a, b) => a + b, 0);
   return weights.map(w => w / total);
@@ -74,6 +76,7 @@ export function roll(s: GameState, count = 1, now = Date.now(), random = Math.ra
     next.materials.dust += 1 + aura.rarity + (isNew ? 2 : 0);
     if (aura.rarity >= 2) next.materials.crystal += 1;
     if (aura.rarity >= 4) next.materials.essence += 1;
+    next.zoneRolls[next.zone] = (next.zoneRolls[next.zone] || 0) + 1;
     next.totalRolls++; next.daily.rolls++; if (isNew) next.daily.discoveries++; if (aura.rarity >= 2) next.daily.rares++;
     next.pityEpic = aura.rarity >= 3 ? 0 : next.pityEpic + 1;
     next.pityMythic = aura.rarity >= 5 ? 0 : next.pityMythic + 1;
@@ -88,23 +91,25 @@ export type Action =
   | { type: 'equip'; id: string } | { type: 'upgrade'; id: UpgradeId } | { type: 'craft'; id: string }
   | { type: 'zone'; id: ZoneId } | { type: 'expedition'; id: ZoneId } | { type: 'expeditionClaim' }
   | { type: 'quest'; id: string } | { type: 'achievement'; id: string } | { type: 'dailyReward' }
-  | { type: 'potion' } | { type: 'buyPotion' } | { type: 'bossStart' } | { type: 'bossAttack'; style: 'attack' | 'guard' | 'burst' }
+  | { type: 'potion' } | { type: 'buyPotion' } | { type: 'bossStart'; id?: string } | { type: 'bossAttack'; style: 'attack' | 'guard' | 'burst' }
   | { type: 'bossLeave' } | { type: 'rebirth' } | { type: 'setting'; id: keyof GameState['settings']; value: boolean }
-  | { type: 'salvage'; id: string };
+  | { type: 'salvage'; id: string } | { type: 'favorite'; id: string } | { type: 'contract'; id: string }
+  | { type: 'claimAllContracts' } | { type: 'salvageAll' } | { type: 'equipBest' };
 export function achievementProgress(s: GameState, metric: string): number {
   return ({ rolls: s.totalRolls, collection: Object.keys(s.inventory).length, rarity: s.stats.bestRarity,
-    zones: s.unlockedZones.length, crafted: s.crafted.length, bosses: s.bossWins } as Record<string, number>)[metric] ?? 0;
+    zones: s.unlockedZones.length, crafted: s.crafted.length, bosses: s.bossWins, expeditions: s.expeditionsDone, earned: s.stats.totalEarned, level: levelOf(s.xp), rebirths: s.rebirths, contracts: s.contractsClaimed.length, uniqueBosses: Object.keys(s.bossKills).length, zoneMastery: Math.max(0, ...Object.values(s.zoneRolls)) } as Record<string, number>)[metric] ?? 0;
 }
 export function canCraft(s: GameState, id: string) {
   const r = RECIPES.find(r => r.id === id);
-  return !!r && !s.crafted.includes(id) && s.coins >= r.coins && Object.entries(r.cost).every(([key, value]) => s.materials[key as Material] >= value);
+  return !!r && !s.crafted.includes(id) && levelOf(s.xp) >= (r.level ?? 1) && (!r.zone || s.unlockedZones.includes(r.zone)) && s.coins >= r.coins && Object.entries(r.cost).every(([key, value]) => s.materials[key as Material] >= value);
 }
-export function act(state: GameState, action: Action, now = Date.now(), random = Math.random): { state: GameState; message: string; ok: boolean } {
+export interface ActionResult { state: GameState; message: string; ok: boolean; combat?: { damage: number; incoming: number; healed: number } }
+export function act(state: GameState, action: Action, now = Date.now(), random = Math.random): ActionResult {
   const s = structuredClone(normalizeDaily(state, now));
-  const fail = (message: string) => ({ state, message, ok: false }); let message = '';
+  const fail = (message: string) => ({ state, message, ok: false }); let message = ''; let combat: ActionResult['combat'];
   switch (action.type) {
     case 'equip': {
-      const a = AURAS.find(a => a.id === action.id); if (!a || !s.inventory[a.id]) return fail('Bạn chưa sở hữu aura này.');
+      const a = AURA_BY_ID[action.id]; if (!a || !s.inventory[a.id]) return fail('Bạn chưa sở hữu aura này.');
       s.equipped = a.id; message = `Đã trang bị ${a.name}.`; break;
     }
     case 'upgrade': {
@@ -161,27 +166,66 @@ export function act(state: GameState, action: Action, now = Date.now(), random =
       if (s.coins < 700) return fail('Cần 700 vàng để mua thuốc.'); s.coins -= 700; s.potions++; message = 'Đã mua 1 thuốc may mắn.'; break;
     }
     case 'bossStart': {
-      if (s.boss) return fail('Trận chiến đang diễn ra.'); if (levelOf(s.xp) < 3) return fail('Boss mở khóa khi bạn đạt cấp 3.');
-      if (s.bossCooldown > now) return fail('Boss đang hồi phục.');
-      s.boss = { hp: 360, playerHp: 150, turn: 0 }; message = 'Kẻ nuốt sao đã thức giấc. Chuẩn bị chiến đấu!'; break;
+      if (s.boss) return fail('Trận chiến đang diễn ra.');
+      const boss = BOSS_BY_ID[action.id ?? BOSSES[0].id]; if (!boss) return fail('Boss không tồn tại.');
+      if (levelOf(s.xp) < boss.level || !s.unlockedZones.includes(boss.zone)) return fail(`Cần cấp ${boss.level} và mở vùng ${ZONES.find(z => z.id === boss.zone)!.name}.`);
+      if ((s.bossCooldowns[boss.id] ?? (boss.id === BOSSES[0].id ? s.bossCooldown : 0)) > now) return fail('Boss đang hồi phục.');
+      const maxHp = 150 + levelOf(s.xp) * 5;
+      s.boss = { id: boss.id, hp: boss.hp, maxHp: boss.hp, playerHp: maxHp, playerMaxHp: maxHp, turn: 0 };
+      message = `${boss.name} đã thức giấc. Chuẩn bị chiến đấu!`; break;
     }
     case 'bossAttack': {
-      if (!s.boss) return fail('Chưa bắt đầu trận chiến.'); const b = s.boss;
+      if (!s.boss) return fail('Chưa bắt đầu trận chiến.'); const b = s.boss, boss = BOSS_BY_ID[b.id];
       if (action.style === 'burst' && b.turn % 3 !== 2) return fail('Bùng nổ sẵn sàng sau 2 hành động.');
-      const base = powerOf(s), damage = Math.round(base * (.9 + random() * .2) * (action.style === 'burst' ? 2.4 : action.style === 'guard' ? .4 : 1));
+      const armor = boss.style === 'bastion' && b.turn % 3 === 0 && action.style !== 'burst' ? .4 : 1;
+      const damage = Math.round(powerOf(s) * (.9 + random() * .2) * (action.style === 'burst' ? 2.4 : action.style === 'guard' ? .4 : 1) * armor);
+      combat = { damage, incoming: 0, healed: 0 };
       b.hp = Math.max(0, b.hp - damage); b.turn++;
       if (b.hp === 0) {
-        s.boss = null; s.bossWins++; s.bossCooldown = now + 120000; s.coins += 1600; s.materials.essence += 2; s.materials.crystal += 8; s.xp += 400;
-        message = 'Chiến thắng! +1.600 vàng, +2 tinh chất, +8 tinh thể, +400 XP.'; entry(s, message, 'boss', now);
+        s.boss = null; s.bossWins++; s.bossKills[boss.id] = (s.bossKills[boss.id] || 0) + 1; s.bossCooldowns[boss.id] = now + 120000;
+        if (boss.id === BOSSES[0].id) s.bossCooldown = now + 120000;
+        s.coins += boss.coins; s.materials.essence += boss.essence; s.materials.crystal += boss.crystal; s.xp += boss.xp;
+        message = `Chiến thắng ${boss.name}! +${boss.coins.toLocaleString('vi-VN')} vàng, +${boss.essence} tinh chất, +${boss.crystal} tinh thể, +${boss.xp} XP.`; entry(s, message, 'boss', now);
       } else {
-        const incoming = Math.round((20 + random() * 10) * (action.style === 'guard' ? .25 : 1));
+        const rage = boss.style === 'berserker' && b.hp <= b.maxHp / 2 ? 1.45 : boss.style === 'striker' && b.turn % 3 === 0 ? 1.5 : 1;
+        const incoming = Math.round((boss.damage + random() * 10) * rage * (action.style === 'guard' ? .25 : 1));
+        combat.incoming = incoming;
         b.playerHp = Math.max(0, b.playerHp - incoming);
-        if (!b.playerHp) { s.boss = null; s.bossCooldown = now + 30000; message = 'Bạn đã rút lui an toàn. Nâng cấp cổ vật, trang bị aura mạnh hơn và thử lại sau 30 giây.'; entry(s, 'Trận chiến kết thúc. Hãy trở lại mạnh mẽ hơn.', 'boss', now); }
-        else message = `${action.style === 'burst' ? 'Bùng nổ' : action.style === 'guard' ? 'Phòng thủ' : 'Tấn công'} gây ${damage} sát thương. Boss phản công ${incoming}.`;
+        if (!b.playerHp) {
+          s.boss = null; s.bossCooldowns[boss.id] = now + 30000; if (boss.id === BOSSES[0].id) s.bossCooldown = now + 30000;
+          message = 'Bạn đã rút lui an toàn. Nâng cấp cổ vật, trang bị aura mạnh hơn và thử lại sau 30 giây.'; entry(s, `Thất bại trước ${boss.name}. Hãy trở lại mạnh mẽ hơn.`, 'boss', now);
+        } else {
+          const heal = boss.style === 'regenerator' && b.turn % 3 === 0 ? Math.min(b.maxHp - b.hp, Math.round(b.maxHp * .03)) : 0; b.hp += heal;
+          combat.healed = heal;
+          message = `${action.style === 'burst' ? 'Bùng nổ' : action.style === 'guard' ? 'Phòng thủ' : 'Tấn công'} gây ${damage} sát thương. Boss phản công ${incoming}.${heal ? ` Hồi phục ${heal} HP.` : ''}`;
+        }
       }
       break;
     }
-    case 'bossLeave': s.boss = null; s.bossCooldown = now + 30000; message = 'Đã rời trận chiến. Bạn có thể quay lại sau 30 giây.'; break;
+    case 'bossLeave': {
+      if (s.boss) { s.bossCooldowns[s.boss.id] = now + 30000; if (s.boss.id === BOSSES[0].id) s.bossCooldown = now + 30000; }
+      s.boss = null; message = 'Đã rời trận chiến. Bạn có thể quay lại sau 30 giây.'; break;
+    }
+    case 'favorite': {
+      if (!AURA_BY_ID[action.id]) return fail('Aura không tồn tại.');
+      s.favorites = s.favorites.includes(action.id) ? s.favorites.filter(id => id !== action.id) : [...s.favorites, action.id]; message = 'Đã cập nhật danh sách yêu thích.'; break;
+    }
+    case 'equipBest': {
+      const best = Object.keys(s.inventory).map(id => AURA_BY_ID[id]).sort((a, b) => b.power - a.power)[0];
+      if (!best) return fail('Bạn chưa sở hữu aura.'); s.equipped = best.id; message = `Đã trang bị ${best.name} · Sức mạnh +${best.power}.`; break;
+    }
+    case 'salvageAll': {
+      let count = 0, dust = 0;
+      for (const [id, quantity] of Object.entries(s.inventory)) if (quantity > 1) { count += quantity - 1; dust += (quantity - 1) * (AURA_BY_ID[id].rarity + 1) * 4; s.inventory[id] = 1; }
+      if (!count) return fail('Chưa có bản sao để phân rã.'); s.materials.dust += dust; message = `Phân rã ${count} bản sao: +${dust} bụi sao. Giữ lại mỗi aura một bản.`; break;
+    }
+    case 'contract':
+    case 'claimAllContracts': {
+      const ready = CONTRACTS.filter(c => (action.type === 'claimAllContracts' || c.id === action.id) && !s.contractsClaimed.includes(c.id) && achievementProgress(s, c.metric) >= c.target);
+      if (!ready.length) return fail('Chưa có hợp đồng đủ điều kiện nhận thưởng.');
+      for (const c of ready) { s.contractsClaimed.push(c.id); s.coins += c.coins; s.materials.dust += c.dust; s.xp += c.xp; }
+      message = `Hoàn thành ${ready.length} hợp đồng! +${ready.reduce((v, c) => v + c.coins, 0).toLocaleString('vi-VN')} vàng.`; entry(s, message, 'quest', now); break;
+    }
     case 'rebirth': {
       if (levelOf(s.xp) < 15 || s.totalRolls < 500 || s.coins < 15000) return fail('Tái sinh cần cấp 15, 500 lượt quay và 15.000 vàng.');
       s.coins -= 15000; s.xp = 0; s.upgrades = { luck: 0, speed: 0, income: 0 }; s.rebirths++; s.boss = null;
@@ -189,12 +233,12 @@ export function act(state: GameState, action: Action, now = Date.now(), random =
     }
     case 'setting': s.settings[action.id] = action.value; message = 'Đã lưu thiết lập.'; break;
     case 'salvage': {
-      const aura = AURAS.find(a => a.id === action.id); if (!aura || (s.inventory[aura.id] || 0) <= 1) return fail('Chỉ có thể phân rã bản sao.');
+      const aura = AURA_BY_ID[action.id]; if (!aura || (s.inventory[aura.id] || 0) <= 1) return fail('Chỉ có thể phân rã bản sao.');
       const count = s.inventory[aura.id] - 1, dust = count * (aura.rarity + 1) * 4; s.inventory[aura.id] = 1; s.materials.dust += dust;
       message = `Đã phân rã ${count} bản sao: +${dust} bụi sao.`; break;
     }
   }
-  return { state: s, message, ok: true };
+  return { state: s, message, ok: true, combat };
 }
 
 // Only validated, bounded game data enters the runtime; imported saves are untrusted.
@@ -214,9 +258,9 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
     if (!record(x.materials) || !record(x.upgrades) || !record(x.inventory) || !record(x.daily) || !record(x.settings) || !record(x.stats)) return null;
     for (const key of Object.keys(s.materials) as Material[]) { if (!validNumber(x.materials[key])) return null; s.materials[key] = x.materials[key]; }
     for (const u of UPGRADES) { const value = x.upgrades[u.id]; if (!validNumber(value, u.max)) return null; s.upgrades[u.id] = value; }
-    if (Object.keys(x.inventory).some(id => !AURAS.some(a => a.id === id))) return null;
+    if (Object.keys(x.inventory).some(id => !AURA_BY_ID[id])) return null;
     s.inventory = {}; for (const [id, count] of Object.entries(x.inventory)) { if (!validNumber(count) || count === 0) return null; s.inventory[id] = count; }
-    if (x.equipped !== null && (typeof x.equipped !== 'string' || !s.inventory[x.equipped])) return null; s.equipped = x.equipped;
+    if (x.equipped !== null && (typeof x.equipped !== 'string' || !AURA_BY_ID[x.equipped] || !s.inventory[x.equipped])) return null; s.equipped = x.equipped;
     const arrayOfIds = (v: unknown, allowed: readonly string[]): v is string[] => Array.isArray(v) && v.length <= allowed.length && new Set(v).size === v.length && v.every(id => typeof id === 'string' && allowed.includes(id));
     if (!arrayOfIds(x.crafted, RECIPES.map(r => r.id)) || !arrayOfIds(x.unlockedZones, ZONES.map(z => z.id)) || !x.unlockedZones.includes('astral') || !x.unlockedZones.includes(String(x.zone))) return null;
     s.crafted = x.crafted; s.unlockedZones = x.unlockedZones as ZoneId[]; s.zone = x.zone as ZoneId;
@@ -232,11 +276,35 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       if (!record(x.expedition) || !s.unlockedZones.includes(x.expedition.zone as ZoneId) || !validNumber(x.expedition.endsAt, 8.64e15)) return null;
       s.expedition = { zone: x.expedition.zone as ZoneId, endsAt: x.expedition.endsAt };
     }
+    for (const key of ['favorites', 'contractsClaimed'] as const) {
+      if (x[key] !== undefined) { const value = x[key]; if (!arrayOfIds(value, key === 'favorites' ? AURAS.map(a => a.id) : CONTRACTS.map(c => c.id))) return null; s[key] = value; }
+    }
+    for (const key of ['bossKills', 'bossCooldowns', 'zoneRolls'] as const) {
+      if (x[key] !== undefined) {
+        const value = x[key]; if (!record(value)) return null;
+        for (const [id, count] of Object.entries(value)) { if (!(key === 'zoneRolls' ? ZONES.some(z => z.id === id) : BOSS_BY_ID[id]) || !validNumber(count, key === 'bossCooldowns' ? 8.64e15 : 1e12) || (key !== 'bossCooldowns' && count === 0)) return null; s[key][id] = count; }
+      }
+    }
+    if (x.bossKills === undefined && s.bossWins > 0) s.bossKills[BOSSES[0].id] = s.bossWins;
     if (x.boss !== null) {
-      if (!record(x.boss) || !validNumber(x.boss.hp, 360) || !validNumber(x.boss.playerHp, 150) || !validNumber(x.boss.turn) || x.boss.hp === 0 || x.boss.playerHp === 0) return null;
-      s.boss = { hp: x.boss.hp, playerHp: x.boss.playerHp, turn: x.boss.turn };
+      if (!record(x.boss)) return null;
+      const id = x.boss.id === undefined ? BOSSES[0].id : x.boss.id;
+      if (typeof id !== 'string' || !BOSS_BY_ID[id]) return null;
+      const maxHp = x.boss.maxHp ?? BOSS_BY_ID[id].hp, playerMaxHp = x.boss.playerMaxHp ?? 150;
+      if (maxHp !== BOSS_BY_ID[id].hp || !validNumber(playerMaxHp, 1000000) || playerMaxHp < 150 || !validNumber(x.boss.hp, maxHp) || !validNumber(x.boss.playerHp, playerMaxHp) || !validNumber(x.boss.turn) || x.boss.hp === 0 || x.boss.playerHp === 0) return null;
+      s.boss = { id, hp: x.boss.hp, maxHp, playerHp: x.boss.playerHp, playerMaxHp, turn: x.boss.turn };
     }
     if (Array.isArray(x.log)) s.log = x.log.filter((l): l is LogEntry => record(l) && typeof l.id === 'string' && l.id.length < 100 && validNumber(l.time, 8.64e15) && typeof l.text === 'string' && l.text.length < 500 && ['roll', 'quest', 'craft', 'world', 'boss'].includes(String(l.type))).slice(0, 60);
     return normalizeDaily(s, now);
   } catch { return null; }
+}
+
+export function bossIntent(s: GameState) {
+  if (!s.boss) return '';
+  const boss = BOSS_BY_ID[s.boss.id], b = s.boss;
+  if (boss.style === 'bastion' && b.turn % 3 === 0) return 'Thiết giáp đang bật · Bùng nổ xuyên giáp';
+  if (boss.style === 'regenerator' && (b.turn + 1) % 3 === 0) return 'Sắp hồi 3% máu nếu còn sống';
+  if (boss.style === 'berserker' && b.hp <= b.maxHp / 2) return 'Cuồng nộ · Sát thương tăng 45%';
+  if (boss.style === 'striker' && (b.turn + 1) % 3 === 0) return 'Sắp cuồng kích · Phòng thủ giảm sát thương';
+  return 'Đòn tấn công thường đang được chuẩn bị';
 }
