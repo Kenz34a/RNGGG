@@ -105,3 +105,16 @@ src/components/Motion.tsx   Chuyển động, quay ba giai đoạn, phản hồi
 src/App.tsx                Tương tác, âm thanh và lưu game
 src/catalogue.css          Giao diện mở rộng
 ```
+
+## Khu vực quản trị `/admin`
+
+Admin có đăng nhập máy chủ, cookie HttpOnly/SameSite, CSRF, giới hạn đăng nhập sai, phiên 8 giờ và đăng xuất thu hồi phiên. Không có tài khoản hay mật khẩu mặc định. Mật khẩu phải ít nhất 16 ký tự, cấu hình bằng secret `ASTRA_ADMIN_PASSWORD` trên nơi chạy server; không đưa vào biến `VITE_*`, Git hay mã frontend. Chưa cấu hình thì API admin trả 503, game vẫn hoạt động.
+
+- Biên tập tên/mô tả cho 1.556 aura, 30 thế giới, 120 cổ vật, 30 boss; khôi phục từng mục về mặc định.
+- Đăng thông báo, tạo sự kiện cộng 0–5 may mắn có thời hạn. Người chơi nhận cấu hình mới khi tải lại game; sự kiện tự hết hạn trong phiên chơi.
+- Dữ liệu cấu hình lưu nguyên tử tại `.local/server/config.json`. Có kiểm tra phiên bản tránh ghi đè thay đổi của phiên quản trị khác. Đặt `ASTRA_DATA_DIR` vào thư mục lưu trữ bền vững khi deploy; sao lưu thư mục này. Đây là server một instance, không dùng chung file giữa nhiều replica.
+- Chỉ sửa nội dung hiển thị, không đổi ID, tỉ lệ hiếm hoặc tiến trình đã lưu. Chưa có tài khoản người chơi nên chưa có quản lý người dùng/thống kê trực tuyến. Game vẫn chạy RNG trên trình duyệt.
+
+Chạy bản đầy đủ: `npm ci`, `npm run build`, cấu hình secret bên trên rồi `npm start` (cổng `PORT`, mặc định 3001). Server phục vụ cả game, `/admin` và API; chỉ upload `dist` lên static hosting sẽ không có API admin. Môi trường production cần `NODE_ENV=production`, `ASTRA_PUBLIC_ORIGIN=https://ten-mien-cua-ban` (không có dấu `/` cuối), HTTPS qua reverse proxy để cookie Secure hoạt động. Origin phải đúng địa chỉ công khai.
+
+Phát triển: chạy `npm start` cho API và `npm run dev` cho giao diện; Vite chuyển tiếp `/api` sang cổng 3001. Không đặt `NODE_ENV=production` khi thử HTTP cục bộ. Đổi mật khẩu hoặc khởi động lại server sẽ hủy các phiên cũ. Kiểm thử: `npm test`, `npm run test:server`, `npm run build`.

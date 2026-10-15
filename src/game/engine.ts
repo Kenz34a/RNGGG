@@ -1,3 +1,4 @@
+import { adminLuck } from './liveConfig';
 import { ACHIEVEMENTS, AURAS, AURA_BY_ID, BOSSES, BOSS_BY_ID, CONTRACTS, QUESTS, RARITIES, RARITY_COUNTS, RECIPES, UPGRADES, ZONES, type Material, type UpgradeId, type ZoneId } from './data';
 
 export const SAVE_KEY = 'astra-rng-save-v1';
@@ -35,7 +36,7 @@ export function levelProgress(xp: number) {
   return { level, current: xp - floor, needed: ceiling - floor, percent: (xp - floor) / (ceiling - floor) * 100 };
 }
 export function luckOf(s: GameState, now = Date.now()) {
-  return 1 + s.upgrades.luck * .2 + s.rebirths * .3 + RECIPES.filter(r => s.crafted.includes(r.id)).reduce((v, r) => v + r.luck, 0)
+  return 1 + adminLuck(now) + s.upgrades.luck * .2 + s.rebirths * .3 + RECIPES.filter(r => s.crafted.includes(r.id)).reduce((v, r) => v + r.luck, 0)
     + (ZONES.find(z => z.id === s.zone)?.luck ?? 0) + (s.boostUntil > now ? 1.5 : 0) + (eventActive(now) ? .35 : 0);
 }
 export function eventActive(now = Date.now()) { return Math.floor(now / 1000) % 900 < 300; }
